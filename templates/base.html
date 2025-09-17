@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title or "Home Server" }}</title>
+  <style>
+    :root {
+      --bg:#0b1220; --card:#121b2e; --text:#e9eef5; --muted:#aab3c5; --accent:#4da3ff; --border:#1b2742;
+    }
+    [data-theme="light"] {
+      --bg:#f5f7fb; --card:#ffffff; --text:#121b2e; --muted:#475269; --accent:#2a7bd6; --border:#e6e9f2;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial,sans-serif}
+    header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--card);position:sticky;top:0}
+    a{color:var(--accent);text-decoration:none}
+    nav a{margin-right:16px}
+    .container{max-width:900px;margin:24px auto;padding:0 16px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:20px}
+    .muted{color:var(--muted)}
+    .btn{display:inline-block;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer}
+    .btn:hover{border-color:var(--accent)}
+    .btn-primary{background:var(--accent);color:#fff;border-color:transparent}
+    .btn-primary:hover{filter:brightness(0.95)}
+    .btn:hover{border-color:var(--accent)}
+    input,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text)}
+    textarea{min-height:110px;resize:vertical}
+    .grid{display:grid;gap:16px}
+  </style>
+  <script defer src="{{ url_for('static', filename='theme.js') }}"></script>
+</head>
+<body>
+<header>
+  <div>
+    <strong>🏠 Guest Welcome</strong>
+    <nav style="display:inline-block;margin-left:16px">
+      <a href="{{ url_for('index') }}">Home</a>
+      <a href="{{ url_for('guestbook') }}">Guestbook</a>
+      <a href="{{ url_for('photobooth') }}">Photo Booth</a>
+      <a href="{{ url_for('wifi') }}">Wi-Fi</a>
+      <a href="{{ url_for('wow') }}">✨ WOW Mode</a>
+      <a href="{{ url_for('tv_mode') }}">TV Mode</a>
+      <a href="{{ url_for('guest_pass_form') }}">Guest Pass</a>
+    </nav>
+  </div>
+  <button class="btn" id="themeToggle" title="Toggle theme">🌓</button>
+</header>
+
+<main class="container">
+  {% block content %}{% endblock %}
+</main>
+  <script src="{{ url_for('static', filename='js/fx.js') }}"></script>
+</body>
+</html>

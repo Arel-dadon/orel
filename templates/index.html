@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="card">
+    <h1>Welcome 👋</h1>
+    <p class="muted">Hello, <strong>{{ device_label }}</strong>!</p>
+    <p class="muted">Your IP: {{ client_ip }} · {{ ua_summary }}</p>
+    <p class="muted">📡 This site is served from <strong>http://{{ server_ip }}:5001</strong></p>
+
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:16px">
+      <a class="btn" href="{{ url_for('wifi') }}">📶 Wi-Fi QR</a>
+      <a class="btn" href="{{ url_for('guestbook') }}">📝 Sign Guestbook</a>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WOW MODE</title>
+  <style>
+    :root{ --bg:#05070f; --text:#e9eef5; --muted:#aab3c5; --accent:#4da3ff; --border:#1b2742; }
+    html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;overflow:hidden}
+    #hud{position:fixed;left:20px;top:20px;display:flex;gap:10px;flex-wrap:wrap;z-index:10}
+    .btn{padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(0,0,0,.35);backdrop-filter:blur(8px);color:var(--text);text-decoration:none}
+    .btn:hover{border-color:var(--accent)}
+    #legend{position:fixed;right:20px;bottom:20px;background:rgba(0,0,0,.35);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:12px;padding:10px 14px;color:var(--muted);font-size:.95em}
+    #note{position:fixed;left:20px;bottom:20px;color:var(--muted);opacity:.9}
+    #mic{cursor:pointer}
+    #webgl2d{position:fixed;inset:0}
+    .pulse{animation:p 1.2s ease-in-out infinite}
+    @keyframes p{0%{transform:scale(1)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
+  </style>
+  <script src="https://unpkg.com/three@0.159.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.159.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+  <div id="hud">
+    <a class="btn" href="{{ url_for('photobooth') }}">📸 Photo Booth</a>
+    <a class="btn" href="{{ url_for('memory_wall') }}">🖼️ Memory Wall</a>
+    <a class="btn" href="{{ url_for('guest_pass_form') }}">🎟️ Guest Pass</a>
+    <button class="btn" id="mic">🎤 Mic: Off</button>
+  </div>
+  <canvas id="webgl2d"></canvas>
+  <div id="legend">Tap / click = particles · Drag = orbit · Press 🎤 for audio-reactive</div>
+  <div id="note">Welcome, <strong>{{ display_name }}</strong></div>
+
+<script>
+const NAME_TEXT = {{ display_name|tojson }};
+const canvas = document.getElementById('webgl2d');
+const micBtn = document.getElementById('mic');
+
+let scene, camera, renderer, controls, analyser, dataArray, starField;
+let nameMesh, ring, clock = new THREE.Clock();
+
+init(); animate();
+
+async function init(){
+  renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+  resize();
+  window.addEventListener('resize', resize);
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 2000);
+  camera.position.set(0, 1.6, 8);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.06; controls.autoRotate = true; controls.autoRotateSpeed = 0.8;
+
+  // Stars
+  const stars = new THREE.BufferGeometry();
+  const count = 5000, pos = new Float32Array(count*3);
+  for (let i=0;i<count;i++){ const r=THREE.MathUtils.randFloat(60,200), t=Math.random()*Math.PI*2, u=Math.random()*Math.PI*2;
+    pos[i*3]=r*Math.cos(t)*Math.sin(u); pos[i*3+1]=r*Math.sin(t)*Math.sin(u); pos[i*3+2]=r*Math.cos(u);
+  }
+  stars.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  const starMat = new THREE.PointsMaterial({color:0x8bb3ff, size:1, sizeAttenuation:true, transparent:true, opacity:0.85});
+  starField = new THREE.Points(stars, starMat); scene.add(starField);
+
+  // Glow ring
+  const ringGeo = new THREE.TorusGeometry(3.2, 0.06, 16, 200);
+  const ringMat = new THREE.MeshBasicMaterial({color:0x4da3ff});
+  ring = new THREE.Mesh(ringGeo, ringMat); ring.rotation.x = Math.PI/2.8; scene.add(ring);
+
+  // Name text (generated with TextGeometry via font JSON)
+  const fontUrl = "https://unpkg.com/three@0.159.0/examples/fonts/helvetiker_regular.typeface.json";
+  const font = await (await fetch(fontUrl)).json();
+  const fontObj = new THREE.Font(font);
+  const geo = new THREE.TextGeometry(NAME_TEXT, {font:fontObj, size:1.1, height:0.35, curveSegments:12, bevelEnabled:true, bevelThickness:0.05, bevelSize:0.05, bevelSegments:5});
+  geo.center();
+  const mat = new THREE.MeshStandardMaterial({color:0xffffff, metalness:0.85, roughness:0.25, envMapIntensity:1});
+  nameMesh = new THREE.Mesh(geo, mat); scene.add(nameMesh);
+
+  // Lights
+  const a = new THREE.AmbientLight(0x88aaff, 0.6); scene.add(a);
+  const p1 = new THREE.PointLight(0x4da3ff, 30, 30); p1.position.set(5,5,5); scene.add(p1);
+  const p2 = new THREE.PointLight(0xff3e9e, 22, 30); p2.position.set(-6,-3,4); scene.add(p2);
+
+  // Particle bursts on click/tap
+  renderer.domElement.addEventListener('pointerdown', burst);
+
+  // Mic toggle
+  micBtn.addEventListener('click', toggleMic);
+}
+
+function resize(){
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  renderer.setPixelRatio(dpr);
+  renderer.setSize(innerWidth, innerHeight, false);
+  if (camera){ camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); }
+}
+
+// Burst particles from the name position
+function burst(e){
+  const N = 160;
+  const g = new THREE.BufferGeometry();
+  const pos = new Float32Array(N*3), vel = new Float32Array(N*3), col = new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    const dir = new THREE.Vector3().randomDirection().multiplyScalar(THREE.MathUtils.randFloat(0.03,0.12));
+    pos.set([0,0,0], i*3); vel.set([dir.x,dir.y,dir.z], i*3);
+    const c = new THREE.Color().setHSL(Math.random(), 0.7, 0.6);
+    col.set([c.r,c.g,c.b], i*3);
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  g.setAttribute('velocity', new THREE.BufferAttribute(vel,3));
+  g.setAttribute('color', new THREE.BufferAttribute(col,3));
+  const m = new THREE.PointsMaterial({size:0.12, vertexColors:true});
+  const points = new THREE.Points(g,m); points.userData.birth = performance.now();
+  points.position.copy(nameMesh.position);
+  scene.add(points);
+}
+
+async function toggleMic(){
+  if (analyser){ analyser = null; dataArray=null; micBtn.textContent="🎤 Mic: Off"; micBtn.classList.remove('pulse'); return; }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser(); analyser.fftSize = 1024;
+    src.connect(analyser);
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+    micBtn.textContent="🎤 Mic: On"; micBtn.classList.add('pulse');
+  }catch(e){ alert("Microphone permission denied"); }
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  if (nameMesh){
+    nameMesh.rotation.y = Math.sin(t*0.4)*0.3;
+    ring.rotation.z += 0.002;
+  }
+  starField.rotation.y -= 0.0006;
+
+  // If mic on, pulse the ring & color by bass energy
+  if (analyser && dataArray){
+    analyser.getByteFrequencyData(dataArray);
+    let bass = 0; for(let i=0;i<8;i++) bass += dataArray[i];
+    bass /= (8*255);
+    const s = 3.2 + bass*0.6;
+    ring.scale.setScalar(s/3.2);
+    const hue = 200 + bass*120; // 200..320
+    ring.material.color.setHSL(hue/360, 0.7, 0.6);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+</script>
+</body>
+</html>

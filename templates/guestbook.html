@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="card">
+    <h2>Guestbook</h2>
+    <p class="muted">Say hi and leave a message.</p>
+    <form method="POST" style="margin-top:12px" class="grid">
+      <input name="name" placeholder="Your name" required maxlength="60" />
+      <textarea name="message" placeholder="Your message" required maxlength="500"></textarea>
+      <button class="btn" type="submit">Submit</button>
+    </form>
+  </div>
+
+  <div style="height:12px"></div>
+
+  <div class="card">
+    <h3>Recent Messages</h3>
+    {% if entries %}
+      <ul style="list-style:none;padding:0;margin:12px 0">
+        {% for e in entries %}
+          <li style="padding:12px 0;border-bottom:1px solid var(--border)">
+            <strong>{{ e['name'] }}</strong>
+            <span class="muted" style="font-size:0.9em"> — {{ e['created_at'] }}</span>
+            <div style="margin-top:6px">{{ e['message']|e }}</div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">No entries yet. Be the first!</p>
+    {% endif %}
+  </div>
+{% endblock %}

@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="card">
+    <h2>📸 Photo Booth</h2>
+    <p class="muted">Take a selfie, add a filter or sticker, and post it to the Memory Wall.</p>
+
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:12px">
+      <div>
+        <div style="position:relative;border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <video id="preview" autoplay playsinline style="width:100%;display:block"></video>
+          <!-- simple live overlay sticker -->
+          <img id="stickerLive" src="" alt="" style="position:absolute;right:8px;bottom:8px;width:80px;display:none;opacity:.9"/>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button class="btn" id="startBtn">Start Camera</button>
+          <button class="btn btn-primary" id="captureBtn" disabled>Capture</button>
+          <button class="btn" id="retakeBtn" disabled>Retake</button>
+        </div>
+      </div>
+
+      <div>
+        <canvas id="canvas" width="1080" height="1440" style="width:100%;border:1px solid var(--border);border-radius:12px;background:var(--bg)"></canvas>
+        <div class="muted" style="font-size:.9em;margin-top:6px">Tip: rotate your phone to portrait for best framing.</div>
+      </div>
+
+      <div>
+        <label class="muted">Your name</label>
+        <input id="name" value="{{ default_name or '' }}" placeholder="Your name"/>
+        <label class="muted" style="margin-top:8px;display:block">Caption (optional)</label>
+        <input id="caption" placeholder="Having a great time!"/>
+
+        <div style="margin-top:12px">
+          <label class="muted">Filter</label>
+          <select id="filter" style="width:100%">
+            <option value="none">None</option>
+            <option value="grayscale(100%)">Grayscale</option>
+            <option value="sepia(80%)">Sepia</option>
+            <option value="contrast(1.3) brightness(1.1)">Punchy</option>
+            <option value="saturate(1.4) hue-rotate(10deg)">Warm</option>
+          </select>
+        </div>
+
+        <div style="margin-top:12px">
+          <label class="muted">Sticker</label>
+          <select id="sticker" style="width:100%">
+            <option value="">None</option>
+            <option value="🎉">🎉 Confetti</option>
+            <option value="🕺">🕺 Party</option>
+            <option value="😎">😎 Cool</option>
+            <option value="❤️">❤️ Heart</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary" id="uploadBtn" style="margin-top:12px" disabled>Upload to Memory Wall</button>
+        <div id="result" class="muted" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  const video = document.getElementById('preview');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const startBtn = document.getElementById('startBtn');
+  const captureBtn = document.getElementById('captureBtn');
+  const retakeBtn = document.getElementById('retakeBtn');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const result = document.getElementById('result');
+  const filterSel = document.getElementById('filter');
+  const stickerSel = document.getElementById('sticker');
+  const stickerLive = document.getElementById('stickerLive');
+  const nameEl = document.getElementById('name');
+  const captionEl = document.getElementById('caption');
+
+  let stream = null;
+  let captured = false;
+
+  function setButtons(state){
+    if(state==='live'){ captureBtn.disabled=false; retakeBtn.disabled=true; uploadBtn.disabled=true; }
+    if(state==='captured'){ captureBtn.disabled=true; retakeBtn.disabled=false; uploadBtn.disabled=false; }
+  }
+
+  async function startCamera(){
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+      video.srcObject = stream;
+      setButtons('live');
+    }catch(e){
+      alert("Camera access failed. Please allow camera permission.");
+      console.error(e);
+    }
+  }
+
+  function drawToCanvas(){
+    // Draw video frame into canvas with letterboxing
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if(!vw || !vh) return;
+    ctx.save();
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg') || '#111';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // fit contain
+    const targetW = canvas.width, targetH = canvas.height;
+    const vr = vw/vh, tr = targetW/targetH;
+    let dw, dh;
+    if(vr > tr){ dh = targetH; dw = dh*vr; } else { dw = targetW; dh = dw/vr; }
+    const dx = (targetW - dw)/2, dy = (targetH - dh)/2;
+
+    // apply filter
+    ctx.filter = filterSel.value || 'none';
+    ctx.drawImage(video, dx, dy, dw, dh);
+    ctx.filter = 'none';
+
+    // optional sticker (text emoji)
+    const s = stickerSel.value;
+    if(s){
+      ctx.font = "200px sans-serif";
+      ctx.globalAlpha = 0.9;
+      ctx.fillText(s, canvas.width - 240, canvas.height - 60);
+      ctx.globalAlpha = 1.0;
+    }
+    ctx.restore();
+  }
+
+  // live sticker preview on the video box
+  stickerSel.addEventListener('change', ()=>{
+    const val = stickerSel.value;
+    if(!val){ stickerLive.style.display='none'; return; }
+    // simple emoji via data URL image
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><text x='50%' y='60%' font-size='150' text-anchor='middle'>${val}</text></svg>`;
+    stickerLive.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    stickerLive.style.display='block';
+  });
+
+  startBtn.addEventListener('click', startCamera);
+
+  captureBtn.addEventListener('click', ()=>{
+    if(!stream){ return alert("Start the camera first."); }
+    drawToCanvas();
+    captured = true;
+    setButtons('captured');
+  });
+
+  retakeBtn.addEventListener('click', ()=>{
+    captured = false;
+    setButtons('live');
+  });
+
+  uploadBtn.addEventListener('click', async ()=>{
+    if(!captured){ return alert("Capture a photo first."); }
+    // re-render to ensure latest filter/sticker applied
+    drawToCanvas();
+    const dataUrl = canvas.toDataURL('image/png');
+    result.textContent = "Uploading...";
+    try{
+      const res = await fetch("{{ url_for('photobooth_upload') }}", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({
+          image: dataUrl,
+          name: nameEl.value,
+          caption: captionEl.value
+        })
+      });
+      const j = await res.json();
+      if(!j.ok) throw new Error(j.error || "Upload failed");
+      result.innerHTML = `✅ Uploaded! <a href="{{ url_for('memory_wall') }}">Open Memory Wall</a>`;
+    }catch(err){
+      console.error(err);
+      result.textContent = "Upload failed.";
+      alert("Upload failed.");
+    }
+  });
+
+  // improve UX: start camera immediately if allowed
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    startCamera().catch(()=>{});
+  }
+  </script>
+{% endblock %}

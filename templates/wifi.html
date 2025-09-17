@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+  <style>
+    /* toast hidden by default */
+    .toast {
+      position: fixed; left: 16px; bottom: 16px;
+      background: rgba(0,0,0,.75); color: #fff;
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 10px 12px; font-size: .95em;
+      opacity: 0; transform: translateY(8px);
+      pointer-events: none; transition: opacity .2s, transform .2s;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+  </style>
+
+  <div class="card">
+    <h2>Wi-Fi</h2>
+    <p class="muted">Scan this code or copy the password to join our Wi-Fi.</p>
+    <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-top:12px">
+      <img src="{{ url_for('wifi_qr_png') }}" alt="Wi-Fi QR"
+           style="width:220px;height:220px;border-radius:12px;border:1px solid var(--border);background:#fff;padding:10px"/>
+      <div>
+        <p><strong>SSID:</strong> {{ ssid }}</p>
+        <p style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <strong>Password:</strong>
+          <input id="wifi-pass" value="{{ password }}" readonly style="width:auto;min-width:180px" />
+          <button class="btn btn-primary" id="copyBtn" type="button">Copy</button>
+        </p>
+        <p><strong>Auth:</strong> {{ auth_type }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- hidden toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite">✅ Password copied to clipboard</div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const btn = document.getElementById("copyBtn");
+      const input = document.getElementById("wifi-pass");
+      const toast = document.getElementById("toast");
+
+      function showToast() {
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 2000);
+      }
+
+      async function copyText(text) {
+        if (navigator.clipboard?.writeText) {
+          try { await navigator.clipboard.writeText(text); return true; } catch {}
+        }
+        try {
+          input.focus(); input.select(); document.execCommand("copy");
+          if (window.getSelection) window.getSelection().removeAllRanges();
+          return true;
+        } catch { return false; }
+      }
+
+      btn.addEventListener("click", async () => {
+        const ok = await copyText(input.value.trim());
+        if (ok) { showToast(); if (window.celebrate) celebrate(); }
+        else alert("Couldn’t copy automatically. Please copy manually.");
+      });
+    });
+  </script>
+{% endblock %}
+/* Force-hide any legacy inline success line (just in case) */
+.inline-copy-success, .legacy-copy-msg { display: none !important; }
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+      const copyBtn = document.getElementById("copyBtn");
+      const passwordInput = document.getElementById("wifiPassword");
+      const toast = document.getElementById("toast");
+
+      copyBtn.addEventListener("click", function() {
+          navigator.clipboard.writeText(passwordInput.value).then(() => {
+              toast.classList.add("show");
+              setTimeout(() => toast.classList.remove("show"), 2000);
+          });
+      });
+
+      // 👇 New snippet appended here
+      console.log("Wi-Fi page loaded! Ready to copy password.");
+  });
+</script>

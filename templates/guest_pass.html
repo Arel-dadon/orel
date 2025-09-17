@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="card">
+    <h2>Personal Guest Pass</h2>
+    <p class="muted">Enter your name and download a shareable Wi-Fi pass with a QR.</p>
+    <form method="POST" action="{{ url_for('guest_pass_png') }}" target="_blank"
+          style="display:grid;gap:12px;max-width:520px;margin-top:12px">
+      <input name="name" placeholder="Your name" maxlength="40" value="{{ default_name or '' }}" />
+      <button class="btn btn-primary" type="submit">Create My Pass</button>
+      <p class="muted" style="margin:0">You’ll get a PNG with the Wi-Fi QR and details.</p>
+    </form>
+  </div>
+{% endblock %}

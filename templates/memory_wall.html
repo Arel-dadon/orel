@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="card">
+    <h2>Memory Wall</h2>
+    <p class="muted">Upload a photo and caption; it appears here instantly.</p>
+    <form method="POST" enctype="multipart/form-data" class="grid" style="margin-top:12px">
+      <input name="name" placeholder="Your name" maxlength="60" value="{{ request.cookies.get('guest_name','') }}" />
+      <input type="file" name="photo" accept="image/*" required />
+      <input name="caption" placeholder="Short caption (optional)" maxlength="140" />
+      <button class="btn btn-primary" type="submit">Upload</button>
+    </form>
+  </div>
+
+  <div style="height:12px"></div>
+
+  <div class="card">
+    <h3>Recent Photos</h3>
+    {% if photos and photos|length > 0 %}
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:12px">
+        {% for p in photos %}
+          <figure style="margin:0;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--bg)">
+            <img src="{{ url_for('uploaded_file', filename=p['filename']) }}" alt="photo by {{ p['name'] }}" style="width:100%;height:180px;object-fit:cover;display:block" />
+            <figcaption style="padding:8px">
+              <strong>{{ p['name'] }}</strong>
+              {% if p['caption'] %}<div class="muted" style="font-size:.9em">{{ p['caption'] }}</div>{% endif %}
+              <div class="muted" style="font-size:.8em">{{ p['created_at'] }}</div>
+            </figcaption>
+          </figure>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted" style="margin-top:8px">No photos yet — be the first!</p>
+    {% endif %}
+  </div>
+{% endblock %}

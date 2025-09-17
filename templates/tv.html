@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Party TV Mode</title>
+  <style>
+    :root{ --bg:#0b1220; --text:#e9eef5; --muted:#aab3c5; --border:#1b2742; }
+    body{ margin:0; background:var(--bg); color:var(--text); font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow:hidden }
+    .stage{ position:fixed; inset:0; display:grid; place-items:center; }
+    .slide{ position:absolute; inset:0; background:#000 center/cover no-repeat; opacity:0; transition:opacity 1.2s ease }
+    .slide.show{ opacity:1 }
+    .meta{ position:fixed; left:24px; bottom:24px; background:rgba(0,0,0,.35); backdrop-filter: blur(6px);
+           padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.15); max-width:45vw }
+    .meta .name{ font-weight:700 }
+    .qr{ position:fixed; right:24px; bottom:24px; text-align:center }
+    .qr img{ width:140px; height:140px; border-radius:12px; background:#fff; padding:8px; border:1px solid var(--border) }
+    .qr small{ display:block; color:var(--muted); margin-top:6px }
+    .kenburns{ animation: kb 22s ease-in-out infinite alternate }
+    @keyframes kb{
+      from{ transform: scale(1.05) translate(-1%, -1%) }
+      to  { transform: scale(1.15)  translate( 1%,  1%) }
+    }
+  </style>
+</head>
+<body>
+  <div class="stage" id="stage"></div>
+
+  <div class="meta" id="meta" style="display:none">
+    <div class="name" id="metaName"></div>
+    <div class="cap" id="metaCap" style="opacity:.9"></div>
+  </div>
+
+  <div class="qr">
+    <img src="{{ url_for('tv_qr') }}" alt="QR to Photo Booth"/>
+    <small>Scan to add your photo 📸</small>
+  </div>
+
+<script>
+const stage = document.getElementById('stage');
+const meta = document.getElementById('meta');
+const metaName = document.getElementById('metaName');
+const metaCap = document.getElementById('metaCap');
+
+let photos = [];
+let idx = 0;
+
+async function loadPhotos(){
+  try{
+    const res = await fetch("{{ url_for('api_photos') }}", {cache:"no-store"});
+    const data = await res.json();
+    if(Array.isArray(data) && data.length){
+      // If there are new photos (by filename order), update list
+      const prevFirst = photos[0]?.url;
+      photos = data;
+      if (photos[0]?.url !== prevFirst) {
+        // jump to newest
+        idx = 0;
+        showSlide();
+      }
+    }
+  }catch(e){ console.error(e); }
+}
+
+// Create a slide element for the current idx
+function showSlide(){
+  if (!photos.length) return;
+  const p = photos[idx % photos.length];
+  const nextIdx = (idx + 1) % photos.length;
+
+  const slide = document.createElement('div');
+  slide.className = 'slide show kenburns';
+  slide.style.backgroundImage = `url('${p.url}')`;
+  stage.appendChild(slide);
+
+  meta.style.display = 'block';
+  metaName.textContent = p.name || "Guest";
+  metaCap.textContent  = p.caption || "";
+
+  // fade out previous after a delay
+  const prev = stage.querySelectorAll('.slide');
+  if(prev.length > 1){
+    const old = prev[0];
+    old.classList.remove('show');
+    setTimeout(()=> old.remove(), 1300);
+  }
+
+  // pre-load the next image
+  const img = new Image();
+  img.src = photos[nextIdx].url;
+
+  idx = nextIdx;
+}
+
+// cycle slides every 7s
+setInterval(showSlide, 7000);
+
+// refresh list every 10s to catch new uploads
+setInterval(loadPhotos, 10000);
+
+// initial
+loadPhotos().then(()=>{
+  if(photos.length) showSlide();
+  else {
+    // nice empty state
+    const empty = document.createElement('div');
+    empty.style.color = "var(--muted)";
+    empty.textContent = "No photos yet — scan the QR to add one!";
+    stage.appendChild(empty);
+  }
+});
+</script>
+</body>
+</html>
