@@ -6,7 +6,10 @@ from pathlib import Path
 import sqlite3, io, qrcode, socket, subprocess, re, os, uuid
 from werkzeug.utils import secure_filename
 from datetime import datetime
-from PIL import Image, ImageDraw, ImageFont
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    Image = ImageDraw = ImageFont = None
 
 APP_DIR = Path(__file__).parent
 # ✅ Use /tmp for writable storage on Vercel
@@ -360,7 +363,6 @@ def wow():
 
 from datetime import datetime
 from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
 import math
 
 # (A) SECRET PAGE
