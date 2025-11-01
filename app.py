@@ -9,8 +9,11 @@ from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 
 APP_DIR = Path(__file__).parent
-DB_PATH = APP_DIR / "guestbook.db"
-UPLOAD_DIR = APP_DIR / "uploads"
+# ✅ Use /tmp for writable storage on Vercel
+WRITE_DIR = Path('/tmp')
+DB_PATH = WRITE_DIR / 'guestbook.db'
+UPLOAD_DIR = WRITE_DIR / 'uploads'
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_EXTS = {"jpg", "jpeg", "png", "gif"}
 MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB
@@ -20,7 +23,6 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
 
 # -------------------- helpers --------------------
 def init_db():
-    UPLOAD_DIR.mkdir(exist_ok=True)
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute("""
