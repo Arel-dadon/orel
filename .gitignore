@@ -1,6 +1,10 @@
+# Python cache and virtual environments
 __pycache__/
 *.pyc
-.env
+.venv/
 venv/
-.env.*
+.env/
+*.log
+
+# macOS artifacts
 .DS_Store
