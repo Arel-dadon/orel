@@ -15,11 +15,20 @@ spec:
         app: guests-welcome
     spec:
       containers:
-      - name: guests-welcome
-        image: python:3.11-slim
-        command: ["python3", "app.py"]
-        ports:
-        - containerPort: 5000
+        - name: guests-welcome
+          image: python:3.11-slim
+          command: ["python3", "app.py"]
+          workingDir: /app
+          volumeMounts:
+            - name: app-code
+              mountPath: /app
+          ports:
+            - containerPort: 5000
+      volumes:
+        - name: app-code
+          hostPath:
+            path: /home/pi/orel   # adjust to your project folder path
+            type: Directory
 
 ---
 apiVersion: v1
@@ -30,7 +39,7 @@ spec:
   selector:
     app: guests-welcome
   ports:
-  - protocol: TCP
-    port: 80
-    targetPort: 5000
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
   type: NodePort
