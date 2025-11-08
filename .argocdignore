@@ -1,0 +1,12 @@
+# Ignore non-Kubernetes files
+.vercel
+vercel.json
+.venv/
+*.py
+*.db
+*.txt
+*.md
+Dockerfile
+static/**
+templates/**
+__pycache__/
